@@ -28,7 +28,7 @@ jobs:
     parameters:
       name: 'linux_pr'
       displayName: 'Linux PR Validation'
-      vmImage: 'ubuntu-16.04'
+      vmImage: 'ubuntu-latest'
       scriptFileName: ./build.sh
       scriptArgs: all customNuGetSource=$(sdkbinPreAuthenticated)
   - template: azure-pipeline.template.yaml
