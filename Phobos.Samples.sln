@@ -11,9 +11,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "build", "build", "{79D71264
 		build.sh = build.sh
 	EndProjectSection
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Petabridge.Phobos.Web", "src\Petabridge.Phobos.Web\Petabridge.Phobos.Web.csproj", "{6186C854-8B2C-4102-8D7A-4B74A61CC91F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Petabridge.Phobos.Web", "src\Phobos.Web\src\Petabridge.Phobos.Web\Petabridge.Phobos.Web.csproj", "{6186C854-8B2C-4102-8D7A-4B74A61CC91F}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Petabridge.Phobos.Web.Tests", "src\Petabridge.Phobos.Web.Tests\Petabridge.Phobos.Web.Tests.csproj", "{0F03312C-5BCB-480F-8C48-30F7EDEDA3D5}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Petabridge.Phobos.Web.Tests", "src\Phobos.Web\src\Petabridge.Phobos.Web.Tests\Petabridge.Phobos.Web.Tests.csproj", "{0F03312C-5BCB-480F-8C48-30F7EDEDA3D5}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Phobos.Web", "Phobos.Web", "{6296C37D-E2CA-4F37-89F3-3F591F6B558D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -35,5 +37,9 @@ Global
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {B99E6BB8-642A-4A68-86DF-69567CBA700A}
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{6186C854-8B2C-4102-8D7A-4B74A61CC91F} = {6296C37D-E2CA-4F37-89F3-3F591F6B558D}
+		{0F03312C-5BCB-480F-8C48-30F7EDEDA3D5} = {6296C37D-E2CA-4F37-89F3-3F591F6B558D}
 	EndGlobalSection
 EndGlobal
