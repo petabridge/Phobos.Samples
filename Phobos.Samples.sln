@@ -11,12 +11,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "build", "build", "{79D71264
 		build.sh = build.sh
 	EndProjectSection
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Petabridge.Phobos.Web", "src\Phobos.Web\src\Petabridge.Phobos.Web\Petabridge.Phobos.Web.csproj", "{6186C854-8B2C-4102-8D7A-4B74A61CC91F}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Petabridge.Phobos.Web.Tests", "src\Phobos.Web\src\Petabridge.Phobos.Web.Tests\Petabridge.Phobos.Web.Tests.csproj", "{0F03312C-5BCB-480F-8C48-30F7EDEDA3D5}"
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Phobos.Web", "Phobos.Web", "{6296C37D-E2CA-4F37-89F3-3F591F6B558D}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Phobos.Kafka", "Phobos.Kafka", "{D7C607F1-CD55-4A4F-9120-07FA41461AEA}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Petabridge.Phobos.Kafka.Producer", "src\Phobos.Kafka\src\Petabridge.Phobos.Kafka.Producer\Petabridge.Phobos.Kafka.Producer.csproj", "{BAA41E65-9B5F-4EF5-9A45-F7ECC9596F1C}"
@@ -29,14 +23,6 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{6186C854-8B2C-4102-8D7A-4B74A61CC91F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{6186C854-8B2C-4102-8D7A-4B74A61CC91F}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{6186C854-8B2C-4102-8D7A-4B74A61CC91F}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{6186C854-8B2C-4102-8D7A-4B74A61CC91F}.Release|Any CPU.Build.0 = Release|Any CPU
-		{0F03312C-5BCB-480F-8C48-30F7EDEDA3D5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{0F03312C-5BCB-480F-8C48-30F7EDEDA3D5}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{0F03312C-5BCB-480F-8C48-30F7EDEDA3D5}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{0F03312C-5BCB-480F-8C48-30F7EDEDA3D5}.Release|Any CPU.Build.0 = Release|Any CPU
 		{BAA41E65-9B5F-4EF5-9A45-F7ECC9596F1C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{BAA41E65-9B5F-4EF5-9A45-F7ECC9596F1C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BAA41E65-9B5F-4EF5-9A45-F7ECC9596F1C}.Release|Any CPU.ActiveCfg = Release|Any CPU
