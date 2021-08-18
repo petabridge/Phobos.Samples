@@ -16,7 +16,7 @@
         <PackageReference Include="Petabridge.Cmd.Cluster" Version="$(PbmVersion)" />
         <PackageReference Include="Petabridge.Cmd.Remote" Version="$(PbmVersion)" />
 
-        <PackageReference Include="Akka.Bootstrap.Docker" Version="0.5.2" />
+        <PackageReference Include="Akka.Bootstrap.Docker" Version="0.5.3" />
         <PackageReference Include="OpenTracing.Contrib.NetCore" Version="0.7.1" />
         <PackageReference Include="App.Metrics.AspNetCore.All" Version="4.2.0" />
         <PackageReference Include="App.Metrics.Formatters.Prometheus" Version="4.2.0" />
