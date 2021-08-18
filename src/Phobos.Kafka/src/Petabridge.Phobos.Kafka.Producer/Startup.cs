@@ -12,7 +12,6 @@ using Akka.Actor;
 using Akka.Bootstrap.Docker;
 using Akka.Configuration;
 using Akka.Streams.Kafka.Settings;
-using Akka.Util;
 using App.Metrics;
 using App.Metrics.Formatters.Prometheus;
 using Jaeger;
@@ -62,7 +61,8 @@ namespace Petabridge.Phobos.Kafka.Producer
                 {
                     a.Hosting.OperationNameResolver = context => $"{context.Request.Method} {context.Request.Path}";
                     
-                    a.Hosting.IgnorePatterns.Add(x => x.Request.Path.StartsWithSegments(new PathString("/health")));
+                    // skip ASP.NET HTTP health check endpoint from appearing in our tracing system
+                    a.Hosting.IgnorePatterns.Add(x => x.Request.Path.StartsWithSegments(new PathString("/ready")));
 
                     // skip Prometheus HTTP /metrics collection from appearing in our tracing system
                     a.Hosting.IgnorePatterns.Add(x => x.Request.Path.StartsWithSegments(new PathString("/metrics")));
@@ -162,14 +162,12 @@ namespace Petabridge.Phobos.Kafka.Producer
                     .BootstrapFromDocker()
                     .UseSerilog()
                     .WithFallback(ConfigurationFactory.FromResource<ProducerSettings<object, object>>("Akka.Streams.Kafka.reference.conf"));
-
                 var phobosSetup = PhobosSetup.Create(new PhobosConfigBuilder()
                         .WithMetrics(m => m.SetMetricsRoot(metrics)) // binds Phobos to same IMetricsRoot as ASP.NET Core
                         .WithTracing(t => t.SetTracer(tracer))) // binds Phobos to same tracer as ASP.NET Core
                     .WithSetup(BootstrapSetup.Create()
                         .WithConfig(config) // passes in the HOCON for Akka.NET to the ActorSystem
                         .WithActorRefProvider(PhobosProviderSelection.Cluster)); // last line activates Phobos inside Akka.NET
-
                 var sys = ActorSystem.Create("ClusterSys", phobosSetup);
 
                 // create actor "container" and bind it to DI, so it can be used by ASP.NET Core
@@ -186,7 +184,7 @@ namespace Petabridge.Phobos.Kafka.Producer
             if (env.IsDevelopment()) app.UseDeveloperExceptionPage();
 
             app.UseRouting();
-            app.UseHealthChecks("/health");
+            app.UseHealthChecks("/ready");
 
             // enable App.Metrics routes
             app.UseMetricsAllMiddleware();

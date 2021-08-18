@@ -93,7 +93,7 @@ spec:
             port: 4055
         readinessProbe:
           httpGet:
-            path: "/health"
+            path: "/ready"
             port: 80
         ports:
         - containerPort: 4055

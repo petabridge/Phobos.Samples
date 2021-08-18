@@ -60,7 +60,8 @@ namespace Petabridge.Phobos.Kafka.Consumer
                 {
                     a.Hosting.OperationNameResolver = context => $"{context.Request.Method} {context.Request.Path}";
                     
-                    a.Hosting.IgnorePatterns.Add(x => x.Request.Path.StartsWithSegments(new PathString("/health")));
+                    // skip ASP.NET HTTP health check endpoint from appearing in our tracing system
+                    a.Hosting.IgnorePatterns.Add(x => x.Request.Path.StartsWithSegments(new PathString("/ready")));
 
                     // skip Prometheus HTTP /metrics collection from appearing in our tracing system
                     a.Hosting.IgnorePatterns.Add(x => x.Request.Path.StartsWithSegments(new PathString("/metrics")));
@@ -142,8 +143,7 @@ namespace Petabridge.Phobos.Kafka.Consumer
                 var tracer = new Tracer.Builder(typeof(Startup).Assembly.GetName().Name)
                     .WithReporter(new CompositeReporter(remoteReporter, logReporter))
                     .WithSampler(sampler)
-                    .WithScopeManager(
-                        new ActorScopeManager()); // IMPORTANT: ActorScopeManager needed to properly correlate trace inside Akka.NET
+                    .WithScopeManager(new ActorScopeManager()); // IMPORTANT: ActorScopeManager needed to properly correlate trace inside Akka.NET
 
                 return tracer.Build();
             });
@@ -185,7 +185,7 @@ namespace Petabridge.Phobos.Kafka.Consumer
             if (env.IsDevelopment()) app.UseDeveloperExceptionPage();
 
             app.UseRouting();
-            app.UseHealthChecks("/health");
+            app.UseHealthChecks("/ready");
 
             // enable App.Metrics routes
             app.UseMetricsAllMiddleware();
@@ -193,20 +193,9 @@ namespace Petabridge.Phobos.Kafka.Consumer
             
             app.UseEndpoints(endpoints =>
             {
-                //var actors = endpoints.ServiceProvider.GetService<AkkaActors>();
-                //var tracer = endpoints.ServiceProvider.GetService<ITracer>();
                 endpoints.MapGet("/", async context =>
                 {
                     await context.Response.WriteAsync("OK");
-                    /*
-                    using (var s = tracer.BuildSpan("Cluster.Ask").StartActive())
-                    {
-                        // router actor will deliver message randomly to someone in cluster
-                        var resp = await actors.RouterForwarderActor.Ask<string>($"hit from {context.TraceIdentifier}",
-                            TimeSpan.FromSeconds(5));
-                        await context.Response.WriteAsync(resp);
-                    }
-                    */
                 });
             });
         }
