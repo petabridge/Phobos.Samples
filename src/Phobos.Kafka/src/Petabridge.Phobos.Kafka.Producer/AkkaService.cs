@@ -19,7 +19,7 @@ using Petabridge.Cmd.Remote;
 using Phobos.Actor;
 using SerilogLogMessageFormatter = Akka.Logger.Serilog.SerilogLogMessageFormatter;
 
-namespace Petabridge.Phobos.Web
+namespace Petabridge.Phobos.Kafka.Producer
 {
     public sealed class ChildActor : ReceiveActor
     {
@@ -29,16 +29,9 @@ namespace Petabridge.Phobos.Web
         {
             ReceiveAny(_ =>
             {
-                if (ThreadLocalRandom.Current.Next(0, 3) == 1) throw new ApplicationException("I'm crashing!");
-
-                _log.Info("Received: {0}", _);
+                _log.Info("[Producer] Received: {0}", _);
                 Sender.Tell(_);
                 Self.Tell(PoisonPill.Instance);
-
-                if (ThreadLocalRandom.Current.Next(0, 4) == 2)
-                    // send a random integer to our parent in order to generate an "unhandled"
-                    // message periodically
-                    Context.Parent.Tell(ThreadLocalRandom.Current.Next());
             });
         }
 
@@ -52,19 +45,24 @@ namespace Petabridge.Phobos.Web
     public sealed class ConsoleActor : ReceiveActor
     {
         private readonly ILoggingAdapter _log = Context.GetLogger(SerilogLogMessageFormatter.Instance);
+        private readonly IActorRef _producer;
 
-        public ConsoleActor()
+        public ConsoleActor(IActorRef producer)
         {
+            _producer = producer;
+            
             Receive<string>(_ =>
             {
                 // use the local metrics handle to record a timer duration for how long this block of code takes to execute
                 Context.GetInstrumentation().Monitor.Timer.Time(new TimerOptions {Name = "ProcessingTime"}, () =>
                 {
                     // start another span programmatically inside actor
-                    using (var newSpan = Context.GetInstrumentation().Tracer.BuildSpan("SecondOp").StartActive())
+                    using (var newSpan = Context.GetInstrumentation().Tracer.BuildSpan("Producer_SecondOp").StartActive())
                     {
+                        _producer.Forward(_);
+                        
                         var child = Context.ActorOf(Props.Create(() => new ChildActor()));
-                        _log.Info("Spawned {child}", child);
+                        _log.Info("[Producer] Spawned {child}", child);
 
                         child.Forward(_);
                     }
@@ -86,7 +84,7 @@ namespace Petabridge.Phobos.Web
             _routerActor = routerActor;
             Receive<string>(_ =>
             {
-                _log.Info("Received: {0}", _);
+                _log.Info("[Producer] Received: {0}", _);
                 _routerActor.Forward(_);
             });
         }
@@ -100,7 +98,8 @@ namespace Petabridge.Phobos.Web
         public AkkaActors(ActorSystem sys)
         {
             Sys = sys;
-            ConsoleActor = sys.ActorOf(Props.Create(() => new ConsoleActor()), "console");
+            ProducerActor = sys.ActorOf(Props.Create(() => new ProducerActor()), "kafka-producer");
+            ConsoleActor = sys.ActorOf(Props.Create(() => new ConsoleActor(ProducerActor)), "console");
             RouterActor = sys.ActorOf(Props.Empty.WithRouter(FromConfig.Instance), "echo");
             RouterForwarderActor = sys.ActorOf(Props.Create(() => new RouterForwarderActor(RouterActor)), "fwd");
         }
@@ -112,6 +111,8 @@ namespace Petabridge.Phobos.Web
         internal IActorRef RouterActor { get; }
 
         public IActorRef RouterForwarderActor { get; }
+        
+        public IActorRef ProducerActor { get; }
     }
 
     public class AkkaService : IHostedService

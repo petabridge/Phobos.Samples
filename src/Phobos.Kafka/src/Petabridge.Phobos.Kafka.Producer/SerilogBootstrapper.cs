@@ -12,9 +12,10 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Events;
+using Serilog.Extensions.Logging;
 using Serilog.Sinks.SystemConsole.Themes;
 
-namespace Petabridge.Phobos.Web
+namespace Petabridge.Phobos.Kafka.Producer
 {
     /// <summary>
     ///     Used to help load our Seq configuration in at application startup.
@@ -105,6 +106,10 @@ namespace Petabridge.Phobos.Web
                 logging.AddConsole();
                 logging.AddSerilog();
                 logging.AddEventSourceLogger();
+                logging
+                    .AddFilter<SerilogLoggerProvider>("Microsoft.Hosting.Lifetime", LogLevel.Information)
+                    .AddFilter<SerilogLoggerProvider>("Microsoft.AspNetCore.Hosting.Diagnostics", LogLevel.Warning)
+                    .AddFilter<SerilogLoggerProvider>("Microsoft", LogLevel.Warning);
             });
         }
 
@@ -121,7 +126,8 @@ namespace Petabridge.Phobos.Web
         {
             var healthCheckRequest = ev.Properties.ContainsKey("RequestPath") &&
                                      (ev.Properties["RequestPath"].ToString() == "\"/env\"" ||
-                                      ev.Properties["RequestPath"].ToString() == "\"/ready\"");
+                                      ev.Properties["RequestPath"].ToString() == "\"/ready\"" ||
+                                      ev.Properties["RequestPath"].ToString() == "\"/metrics\"");
 
             var metricsLog = ev.Properties.ContainsKey("kubernetes_annotations_prometheus.io_path") &&
                              ev.Properties["kubernetes_annotations_prometheus.io_path"].ToString() == "\"/metrics\"";

@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/core/sdk:3.1 AS base
+﻿FROM mcr.microsoft.com/dotnet/core/sdk:3.1 AS base
 WORKDIR /app
 
 # should be a comma-delimited list
@@ -30,4 +30,4 @@ COPY --from=base /root/.dotnet /root/.dotnet/
 # Needed because https://stackoverflow.com/questions/51977474/install-dotnet-core-tool-dockerfile
 ENV PATH="${PATH}:/root/.dotnet/tools"
 
-CMD ["dotnet", "Petabridge.Phobos.Web.dll"]
+CMD ["dotnet", "Petabridge.Phobos.Kafka.Producer.dll"]

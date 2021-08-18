@@ -11,6 +11,7 @@ using System.Net;
 using Akka.Actor;
 using Akka.Bootstrap.Docker;
 using Akka.Configuration;
+using Akka.Streams.Kafka.Settings;
 using App.Metrics;
 using App.Metrics.Formatters.Prometheus;
 using Jaeger;
@@ -25,11 +26,12 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using OpenTracing;
+using OpenTracing.Util;
 using Phobos.Actor;
 using Phobos.Actor.Configuration;
 using Phobos.Tracing.Scopes;
 
-namespace Petabridge.Phobos.Web
+namespace Petabridge.Phobos.Kafka.Producer
 {
     public class Startup
     {
@@ -50,12 +52,17 @@ namespace Petabridge.Phobos.Web
         // For more information on how to configure your application, visit https://go.microsoft.com/fwlink/?LinkID=398940
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddHealthChecks();
+            
             // enables OpenTracing for ASP.NET Core
             services.AddOpenTracing(o =>
             {
                 o.ConfigureAspNetCore(a =>
                 {
                     a.Hosting.OperationNameResolver = context => $"{context.Request.Method} {context.Request.Path}";
+                    
+                    // skip ASP.NET HTTP health check endpoint from appearing in our tracing system
+                    a.Hosting.IgnorePatterns.Add(x => x.Request.Path.StartsWithSegments(new PathString("/ready")));
 
                     // skip Prometheus HTTP /metrics collection from appearing in our tracing system
                     a.Hosting.IgnorePatterns.Add(x => x.Request.Path.StartsWithSegments(new PathString("/metrics")));
@@ -106,8 +113,7 @@ namespace Petabridge.Phobos.Web
             {
                 if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable(JaegerEndpointEnvironmentVar)))
                 {
-                    if (!int.TryParse(Environment.GetEnvironmentVariable(JaegerAgentPortEnvironmentVar),
-                        out var udpPort))
+                    if (!int.TryParse(Environment.GetEnvironmentVariable(JaegerAgentPortEnvironmentVar), out var udpPort))
                         udpPort = DefaultJaegerAgentPort;
                     return new UdpSender(
                         Environment.GetEnvironmentVariable(JaegerAgentHostEnvironmentVar) ?? "localhost",
@@ -134,13 +140,14 @@ namespace Petabridge.Phobos.Web
                 var sampler = new ConstSampler(true); // keep sampling disabled
 
                 // name the service after the executing assembly
-                var tracer = new Tracer.Builder(typeof(Startup).Assembly.GetName().Name)
+                var tracerBuilder = new Tracer.Builder(typeof(Startup).Assembly.GetName().Name)
                     .WithReporter(new CompositeReporter(remoteReporter, logReporter))
                     .WithSampler(sampler)
-                    .WithScopeManager(
-                        new ActorScopeManager()); // IMPORTANT: ActorScopeManager needed to properly correlate trace inside Akka.NET
-
-                return tracer.Build();
+                    .WithScopeManager(new ActorScopeManager()); // IMPORTANT: ActorScopeManager needed to properly correlate trace inside Akka.NET
+                
+                GlobalTracer.Register(tracerBuilder.Build());
+                
+                return GlobalTracer.Instance;
             });
         }
 
@@ -153,17 +160,14 @@ namespace Petabridge.Phobos.Web
 
                 var config = ConfigurationFactory.ParseString(File.ReadAllText("app.conf"))
                     .BootstrapFromDocker()
-                    .UseSerilog();
-
+                    .UseSerilog()
+                    .WithFallback(ConfigurationFactory.FromResource<ProducerSettings<object, object>>("Akka.Streams.Kafka.reference.conf"));
                 var phobosSetup = PhobosSetup.Create(new PhobosConfigBuilder()
-                        .WithMetrics(m =>
-                            m.SetMetricsRoot(metrics)) // binds Phobos to same IMetricsRoot as ASP.NET Core
+                        .WithMetrics(m => m.SetMetricsRoot(metrics)) // binds Phobos to same IMetricsRoot as ASP.NET Core
                         .WithTracing(t => t.SetTracer(tracer))) // binds Phobos to same tracer as ASP.NET Core
                     .WithSetup(BootstrapSetup.Create()
                         .WithConfig(config) // passes in the HOCON for Akka.NET to the ActorSystem
-                        .WithActorRefProvider(PhobosProviderSelection
-                            .Cluster)); // last line activates Phobos inside Akka.NET
-
+                        .WithActorRefProvider(PhobosProviderSelection.Cluster)); // last line activates Phobos inside Akka.NET
                 var sys = ActorSystem.Create("ClusterSys", phobosSetup);
 
                 // create actor "container" and bind it to DI, so it can be used by ASP.NET Core
@@ -180,6 +184,7 @@ namespace Petabridge.Phobos.Web
             if (env.IsDevelopment()) app.UseDeveloperExceptionPage();
 
             app.UseRouting();
+            app.UseHealthChecks("/ready");
 
             // enable App.Metrics routes
             app.UseMetricsAllMiddleware();
