@@ -138,6 +138,7 @@ namespace Petabridge.Phobos.Kafka.Consumer
             var committerDefaults = CommitterSettings.Create(system);
 
             _kafkaControl = KafkaConsumer.CommittableSource(consumerSettings, subscription)
+                .WithTracing(system, _tracer)
                 .SelectAsync(1, msg => 
                     Business(msg.Record).ContinueWith(done => (ICommittable) msg.CommitableOffset))
                 .ToMaterialized(
@@ -162,29 +163,35 @@ namespace Petabridge.Phobos.Kafka.Consumer
                 record.Message.Value);
 
             var message = record.Message;
+            var response = await _actors.ConsoleActor.Ask<string>($"hit from {message.Value}", TimeSpan.FromSeconds(5));
+            _logger.LogInformation("[Consumer] Child response: [{ConsumerChildResponse}]", response);
+        }
+    }
 
-            IScope currentScope = null;
-            if (message.Headers.TryGetLastBytes("spanContext", out var contextPayload))
+    public static class KafkaExtensions
+    {
+        public static Source<CommittableMessage<TKey, TValue>, IControl> WithTracing<TKey, TValue>(
+            this Source<CommittableMessage<TKey, TValue>, IControl> source, 
+            ActorSystem system,
+            ITracer tracer)
+        {
+            return source.Select(msg =>
             {
-                try
+                if (msg.Record.Message.Headers.TryGetLastBytes("spanContext", out var contextPayload))
                 {
-                    var envelope = (SpanEnvelope) _serializer.FromBinary(contextPayload, TraceEnvelopeSerializer.WithTraceManifest);
+                    var serializer =
+                        (TraceEnvelopeSerializer) system.Serialization.FindSerializerForType(typeof(SpanEnvelope));
+                    var envelope =
+                        (SpanEnvelope) serializer.FromBinary(contextPayload, TraceEnvelopeSerializer.WithTraceManifest);
                     var activeContext = envelope.ActiveSpan;
 
-                    currentScope = _tracer.BuildSpan("kafka-consumer-receive")
+                    tracer.BuildSpan("kafka-consumer-receive")
                         .AsChildOf(activeContext)
                         .StartActive();
                 }
-                catch (Exception e)
-                {
-                    _log.Error(e, $"[Consumer] Failed to rebuild active span context: {e.Message}");
-                }
-            }
-            
-            var response = await _actors.ConsoleActor.Ask<string>($"hit from {message.Value}", TimeSpan.FromSeconds(5));
-            
-            _logger.LogInformation("[Consumer] Child response: [{ConsumerChildResponse}]", response);
-            currentScope?.Dispose();
+
+                return msg;
+            });
         }
     }
 }
