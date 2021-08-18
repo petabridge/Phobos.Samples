@@ -235,20 +235,6 @@ namespace Petabridge.Phobos.Kafka.Producer
         }
     }
 
-    public class KafkaSpanContext<T>
-    {
-        public KafkaSpanContext(T message, ActorSystem system, ISpanContext context)
-        {
-            Message = message;
-            System = system;
-            Context = context;
-        }
-
-        public T Message { get; }
-        public ActorSystem System { get; }
-        public ISpanContext Context { get; }
-    }
-    
     public static class ProducerRecordExtensions
     {
         public static ProducerRecord<TKey, TValue> WithTracing<TKey, TValue>(
