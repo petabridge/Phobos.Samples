@@ -9,7 +9,7 @@ namespace Petabridge.Phobos.Kafka.Producer
 {
     public sealed class PhobosActorRefSource<TOut> : SourceModule<(TOut, ISpanContext), IActorRef>
     {
-                private readonly int _bufferSize;
+        private readonly int _bufferSize;
         private readonly OverflowStrategy _overflowStrategy;
 
         /// <summary>

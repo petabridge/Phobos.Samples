@@ -21,7 +21,7 @@ namespace Petabridge.Phobos.Kafka.Producer
                 new PhobosActorRefSource<T>(
                     bufferSize,
                     overflowStrategy, 
-                    DefaultAttributes.ActorRefSource, 
+                    Attributes.CreateName("phobosActorRefSource"), 
                     Source.Shape<(T, ISpanContext)>("PhobosActorRefSource")));
             
             return new SourceWithContext<ISpanContext, T, IActorRef>(flow.Select(x => x));

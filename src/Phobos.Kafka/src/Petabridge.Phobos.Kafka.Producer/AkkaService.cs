@@ -70,7 +70,7 @@ namespace Petabridge.Phobos.Kafka.Producer
                     using (var newSpan = Context.GetInstrumentation().Tracer.BuildSpan("Producer_SecondOp").StartActive())
                     {
                         var spanContext = Context.GetInstrumentation().ActiveSpan?.Context;
-                        _producer.Forward(Tuple.Create(spanContext, _));
+                        _producer.Forward(_);
                         
                         var child = Context.ActorOf(Props.Create(() => new ChildActor()));
                         _log.Info("[Producer] Spawned {child}", child);
