@@ -11,7 +11,7 @@ using System.Runtime.CompilerServices;
 using Akka.Annotations;
 using Akka.Streams;
 
-namespace Petabridge.Phobos.Kafka.Producer
+namespace Petabridge.Tracing.Kafka
 {
     /// <summary>
     /// INTERNAL API

@@ -24,6 +24,7 @@ using OpenTracing;
 using Petabridge.Cmd.Cluster;
 using Petabridge.Cmd.Host;
 using Petabridge.Cmd.Remote;
+using Petabridge.Tracing.Kafka;
 using Phobos.Actor;
 using Phobos.Tracing;
 using Phobos.Tracing.Serialization;
@@ -138,7 +139,7 @@ namespace Petabridge.Phobos.Kafka.Consumer
             var committerDefaults = CommitterSettings.Create(system);
 
             _kafkaControl = KafkaConsumer.CommittableSource(consumerSettings, subscription)
-                .WithTracing(system, _tracer)
+                .WithTracing(_tracer, system)
                 .SelectAsync(1, msg => 
                     Business(msg.Record).ContinueWith(done => (ICommittable) msg.CommitableOffset))
                 .ToMaterialized(
@@ -165,33 +166,6 @@ namespace Petabridge.Phobos.Kafka.Consumer
             var message = record.Message;
             var response = await _actors.ConsoleActor.Ask<string>($"hit from {message.Value}", TimeSpan.FromSeconds(5));
             _logger.LogInformation("[Consumer] Child response: [{ConsumerChildResponse}]", response);
-        }
-    }
-
-    public static class KafkaExtensions
-    {
-        public static Source<CommittableMessage<TKey, TValue>, IControl> WithTracing<TKey, TValue>(
-            this Source<CommittableMessage<TKey, TValue>, IControl> source, 
-            ActorSystem system,
-            ITracer tracer)
-        {
-            return source.Select(msg =>
-            {
-                if (msg.Record.Message.Headers.TryGetLastBytes("spanContext", out var contextPayload))
-                {
-                    var serializer =
-                        (TraceEnvelopeSerializer) system.Serialization.FindSerializerForType(typeof(SpanEnvelope));
-                    var envelope =
-                        (SpanEnvelope) serializer.FromBinary(contextPayload, TraceEnvelopeSerializer.WithTraceManifest);
-                    var activeContext = envelope.ActiveSpan;
-
-                    tracer.BuildSpan("kafka-consumer-receive")
-                        .AsChildOf(activeContext)
-                        .StartActive();
-                }
-
-                return msg;
-            });
         }
     }
 }

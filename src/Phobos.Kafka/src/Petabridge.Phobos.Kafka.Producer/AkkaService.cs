@@ -17,6 +17,7 @@ using Akka.Streams.Kafka.Dsl;
 using Akka.Streams.Kafka.Messages;
 using Akka.Streams.Kafka.Settings;
 using Akka.Util;
+using Akka.Util.Internal;
 using App.Metrics.Timer;
 using Confluent.Kafka;
 using Microsoft.Extensions.Hosting;
@@ -24,6 +25,7 @@ using OpenTracing;
 using Petabridge.Cmd.Cluster;
 using Petabridge.Cmd.Host;
 using Petabridge.Cmd.Remote;
+using Petabridge.Tracing.Kafka;
 using Phobos.Actor;
 using Phobos.Tracing;
 using Phobos.Tracing.Serialization;
@@ -39,7 +41,7 @@ namespace Petabridge.Phobos.Kafka.Producer
         {
             ReceiveAny(_ =>
             {
-                _log.Info("[Producer] Received: {0}", _);
+                _log.Info("[Producer][ChildActor] Received: {0}", _);
                 Sender.Tell(_);
                 Self.Tell(PoisonPill.Instance);
             });
@@ -56,12 +58,14 @@ namespace Petabridge.Phobos.Kafka.Producer
     {
         private readonly ILoggingAdapter _log = Context.GetLogger(SerilogLogMessageFormatter.Instance);
         private readonly IActorRef _producer;
+        private readonly AtomicCounter _counter;
 
         public ConsoleActor(IActorRef producer)
         {
             _producer = producer;
+            _counter = new AtomicCounter();
             
-            Receive<string>(_ =>
+            Receive<string>(message =>
             {
                 // use the local metrics handle to record a timer duration for how long this block of code takes to execute
                 Context.GetInstrumentation().Monitor.Timer.Time(new TimerOptions {Name = "ProcessingTime"}, () =>
@@ -69,13 +73,13 @@ namespace Petabridge.Phobos.Kafka.Producer
                     // start another span programmatically inside actor
                     using (var newSpan = Context.GetInstrumentation().Tracer.BuildSpan("Producer_SecondOp").StartActive())
                     {
-                        var spanContext = Context.GetInstrumentation().ActiveSpan?.Context;
-                        _producer.Forward(_);
-                        
-                        var child = Context.ActorOf(Props.Create(() => new ChildActor()));
-                        _log.Info("[Producer] Spawned {child}", child);
+                        _producer.Forward(message);
 
-                        child.Forward(_);
+                        var id = _counter.GetAndIncrement();
+                        var child = Context.ActorOf(Props.Create(() => new ChildActor()), $"Child_{id}");
+                        _log.Info("[Producer][ConsoleActor] Spawned {child}", child);
+
+                        child.Forward(message);
                     }
                 });
             });
@@ -96,7 +100,7 @@ namespace Petabridge.Phobos.Kafka.Producer
             
             Receive<string>(_ =>
             {
-                _log.Info("[Producer] Received: {0}", _);
+                _log.Info("[Producer][RouterForwarderActor] Received: {0}", _);
                 _routerActor.Forward(_);
             });
         }
@@ -127,7 +131,7 @@ namespace Petabridge.Phobos.Kafka.Producer
             
             ProducerActor = PhobosSource.ActorRef<string>(128, OverflowStrategy.DropNew)
                 .Select(msg => new ProducerRecord<Null, string>(Topic, null, msg))
-                .WithTracing(sys)
+                .WithTracing(Sys)
                 .Select(record => ProducerMessage.Single(record))
                 .Via(KafkaProducer.FlexiFlow<Null, string, NotUsed>(producerSettings))
                 .ToMaterialized(Sink.ForEach<IResults<Null, string, NotUsed>>(result =>

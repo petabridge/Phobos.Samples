@@ -5,9 +5,9 @@ using Akka.Streams.Implementation;
 using OpenTracing;
 using Reactive.Streams;
 
-namespace Petabridge.Phobos.Kafka.Producer
+namespace Petabridge.Tracing.Kafka
 {
-    public sealed class PhobosActorRefSource<TOut> : SourceModule<(TOut, ISpanContext), IActorRef>
+    public sealed class PhobosActorRefSource<TOut> : SourceModule<(TOut, ITracer), IActorRef>
     {
         private readonly int _bufferSize;
         private readonly OverflowStrategy _overflowStrategy;
@@ -19,7 +19,7 @@ namespace Petabridge.Phobos.Kafka.Producer
         /// <param name="overflowStrategy">TBD</param>
         /// <param name="attributes">TBD</param>
         /// <param name="shape">TBD</param>
-        public PhobosActorRefSource(int bufferSize, OverflowStrategy overflowStrategy, Attributes attributes, SourceShape<(TOut, ISpanContext)> shape) : base(shape)
+        public PhobosActorRefSource(int bufferSize, OverflowStrategy overflowStrategy, Attributes attributes, SourceShape<(TOut, ITracer)> shape) : base(shape)
         {
             _bufferSize = bufferSize;
             _overflowStrategy = overflowStrategy;
@@ -51,7 +51,7 @@ namespace Petabridge.Phobos.Kafka.Producer
         /// </summary>
         /// <param name="shape">TBD</param>
         /// <returns>TBD</returns>
-        protected override SourceModule<(TOut, ISpanContext), IActorRef> NewInstance(SourceShape<(TOut, ISpanContext)> shape) 
+        protected override SourceModule<(TOut, ITracer), IActorRef> NewInstance(SourceShape<(TOut, ITracer)> shape) 
             => new PhobosActorRefSource<TOut>(_bufferSize, _overflowStrategy, Attributes, shape);
 
         /// <summary>
@@ -60,11 +60,11 @@ namespace Petabridge.Phobos.Kafka.Producer
         /// <param name="context">TBD</param>
         /// <param name="materializer">TBD</param>
         /// <returns>TBD</returns>
-        public override IPublisher<(TOut, ISpanContext)> Create(MaterializationContext context, out IActorRef materializer)
+        public override IPublisher<(TOut, ITracer)> Create(MaterializationContext context, out IActorRef materializer)
         {
             var mat = (ActorMaterializer)context.Materializer;
             materializer = mat.ActorOf(context, PhobosActorRefSourceActor<TOut>.Props(_bufferSize, _overflowStrategy, mat.Settings));
-            return new ActorPublisherImpl<(TOut, ISpanContext)>(materializer);
+            return new ActorPublisherImpl<(TOut, ITracer)>(materializer);
         }
     }
 }

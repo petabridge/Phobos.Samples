@@ -3,13 +3,12 @@ using Akka.Actor;
 using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Actors;
-using Akka.Streams.Implementation;
 using OpenTracing;
 using Phobos.Actor;
 
-namespace Petabridge.Phobos.Kafka.Producer
+namespace Petabridge.Tracing.Kafka
 {
-    internal class PhobosActorRefSourceActor<T> : Akka.Streams.Actors.ActorPublisher<(T, ISpanContext)>
+    internal class PhobosActorRefSourceActor<T> : Akka.Streams.Actors.ActorPublisher<(T, ITracer)>
     {
         /// <summary>
         /// TBD
@@ -33,7 +32,7 @@ namespace Petabridge.Phobos.Kafka.Producer
         /// <summary>
         /// TBD
         /// </summary>
-        protected readonly IBuffer<(T, ISpanContext)> Buffer;
+        protected readonly IBuffer<(T, ITracer)> Buffer;
 
         /// <summary>
         /// TBD
@@ -55,7 +54,7 @@ namespace Petabridge.Phobos.Kafka.Producer
         {
             BufferSize = bufferSize;
             OverflowStrategy = overflowStrategy;
-            Buffer = bufferSize != 0 ?  Producer.Buffer.Create<(T, ISpanContext)>(bufferSize, maxFixedBufferSize) : null;
+            Buffer = bufferSize != 0 ?  Kafka.Buffer.Create<(T, ITracer)>(bufferSize, maxFixedBufferSize) : null;
         }
 
         /// <summary>
@@ -69,7 +68,12 @@ namespace Petabridge.Phobos.Kafka.Producer
         /// <param name="message">TBD</param>
         /// <returns>TBD</returns>
         protected override bool Receive(object message)
-            => DefaultReceive(message) || RequestElement(message) || (message is T && ReceiveElement((T) message));
+        {
+            var handled = DefaultReceive(message) || RequestElement(message) || (message is T msg && ReceiveElement(msg));
+            if(!handled)
+                Log.Warning($"Received {message}, and I don't know what to do with it.");
+            return handled;
+        }
 
         /// <summary>
         /// TBD
@@ -123,13 +127,13 @@ namespace Petabridge.Phobos.Kafka.Producer
         {
             if (IsActive)
             {
-                var context = Context.GetInstrumentation().ActiveSpan?.Context;
-                var message = (element, context);
+                var tracer = Context.GetInstrumentation().Tracer;
+                var message = (element, tracer);
                 
                 if (TotalDemand > 0L)
                     OnNext(message);
                 else if (BufferSize == 0)
-                    Log.Debug("Dropping element because there is no downstream demand: [{0}]", message);
+                    Log.Debug("Dropping element because there is no downstream demand: [{0}]", element);
                 else if (!Buffer.IsFull)
                     Buffer.Enqueue(message);
                 else
