@@ -7,16 +7,28 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Akka;
 using Akka.Actor;
 using Akka.Event;
 using Akka.Routing;
+using Akka.Streams;
+using Akka.Streams.Dsl;
+using Akka.Streams.Kafka.Dsl;
+using Akka.Streams.Kafka.Messages;
+using Akka.Streams.Kafka.Settings;
 using Akka.Util;
+using Akka.Util.Internal;
 using App.Metrics.Timer;
+using Confluent.Kafka;
 using Microsoft.Extensions.Hosting;
+using OpenTracing;
 using Petabridge.Cmd.Cluster;
 using Petabridge.Cmd.Host;
 using Petabridge.Cmd.Remote;
+using Petabridge.Tracing.Kafka;
 using Phobos.Actor;
+using Phobos.Tracing;
+using Phobos.Tracing.Serialization;
 using SerilogLogMessageFormatter = Akka.Logger.Serilog.SerilogLogMessageFormatter;
 
 namespace Petabridge.Phobos.Kafka.Producer
@@ -29,7 +41,7 @@ namespace Petabridge.Phobos.Kafka.Producer
         {
             ReceiveAny(_ =>
             {
-                _log.Info("[Producer] Received: {0}", _);
+                _log.Info("[Producer][ChildActor] Received: {0}", _);
                 Sender.Tell(_);
                 Self.Tell(PoisonPill.Instance);
             });
@@ -46,12 +58,14 @@ namespace Petabridge.Phobos.Kafka.Producer
     {
         private readonly ILoggingAdapter _log = Context.GetLogger(SerilogLogMessageFormatter.Instance);
         private readonly IActorRef _producer;
+        private readonly AtomicCounter _counter;
 
         public ConsoleActor(IActorRef producer)
         {
             _producer = producer;
+            _counter = new AtomicCounter();
             
-            Receive<string>(_ =>
+            Receive<string>(message =>
             {
                 // use the local metrics handle to record a timer duration for how long this block of code takes to execute
                 Context.GetInstrumentation().Monitor.Timer.Time(new TimerOptions {Name = "ProcessingTime"}, () =>
@@ -59,12 +73,13 @@ namespace Petabridge.Phobos.Kafka.Producer
                     // start another span programmatically inside actor
                     using (var newSpan = Context.GetInstrumentation().Tracer.BuildSpan("Producer_SecondOp").StartActive())
                     {
-                        _producer.Forward(_);
-                        
-                        var child = Context.ActorOf(Props.Create(() => new ChildActor()));
-                        _log.Info("[Producer] Spawned {child}", child);
+                        _producer.Forward(message);
 
-                        child.Forward(_);
+                        var id = _counter.GetAndIncrement();
+                        var child = Context.ActorOf(Props.Create(() => new ChildActor()), $"Child_{id}");
+                        _log.Info("[Producer][ConsoleActor] Spawned {child}", child);
+
+                        child.Forward(message);
                     }
                 });
             });
@@ -82,9 +97,10 @@ namespace Petabridge.Phobos.Kafka.Producer
         public RouterForwarderActor(IActorRef routerActor)
         {
             _routerActor = routerActor;
+            
             Receive<string>(_ =>
             {
-                _log.Info("[Producer] Received: {0}", _);
+                _log.Info("[Producer][RouterForwarderActor] Received: {0}", _);
                 _routerActor.Forward(_);
             });
         }
@@ -95,12 +111,37 @@ namespace Petabridge.Phobos.Kafka.Producer
     /// </summary>
     public sealed class AkkaActors
     {
+        public const string KafkaServiceHost = "KAFKA_SERVICE_HOST";
+        public const string KafkaServicePort = "KAFKA_SERVICE_PORT";
+        
+        private const string Topic = "demo";
+
         public AkkaActors(ActorSystem sys)
         {
             Sys = sys;
-            ProducerActor = sys.ActorOf(Props.Create(() => new ProducerActor()), "kafka-producer");
-            ConsoleActor = sys.ActorOf(Props.Create(() => new ConsoleActor(ProducerActor)), "console");
             RouterActor = sys.ActorOf(Props.Empty.WithRouter(FromConfig.Instance), "echo");
+            
+            var log = Logging.GetLogger(sys, "KafkaProducerStream");
+            
+            var kafkaHost = Environment.GetEnvironmentVariable(KafkaServiceHost);
+            var kafkaPort = Environment.GetEnvironmentVariable(KafkaServicePort);
+            var bootstrapServer = $"{kafkaHost}:{kafkaPort}";
+            var producerSettings = ProducerSettings<Null, string>.Create(sys, null, null)
+                .WithBootstrapServers(bootstrapServer);
+            
+            ProducerActor = PhobosSource.ActorRef<string>(128, OverflowStrategy.DropNew)
+                .Select(msg => new ProducerRecord<Null, string>(Topic, null, msg))
+                .WithTracing(Sys)
+                .Select(record => ProducerMessage.Single(record))
+                .Via(KafkaProducer.FlexiFlow<Null, string, NotUsed>(producerSettings))
+                .ToMaterialized(Sink.ForEach<IResults<Null, string, NotUsed>>(result =>
+                {
+                    var metadata = ((Result<Null, string, NotUsed>) result).Metadata;
+                    log.Info($"[Producer] {metadata.Topic}/{metadata.Partition} {metadata.Offset} received commit: {metadata.Value}");
+                }), Keep.Left)
+                .Run(sys.Materializer());
+            
+            ConsoleActor = sys.ActorOf(Props.Create(() => new ConsoleActor(ProducerActor)), "console");
             RouterForwarderActor = sys.ActorOf(Props.Create(() => new RouterForwarderActor(RouterActor)), "fwd");
         }
 
@@ -140,4 +181,5 @@ namespace Petabridge.Phobos.Kafka.Producer
             return CoordinatedShutdown.Get(_actors.Sys).Run(CoordinatedShutdown.ClrExitReason.Instance);
         }
     }
+
 }

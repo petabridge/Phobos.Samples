@@ -1,0 +1,10 @@
+/**
+ * Copyright (C) 2018 - 2021 Petabridge�, LLC <https://petabridge.com>
+ */
+
+syntax = "proto3";
+package Petabridge.Tracing.Kafka.Proto;
+
+message SpanContextProto {
+	map<string, string> text_format = 1;
+}

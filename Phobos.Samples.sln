@@ -17,6 +17,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Petabridge.Phobos.Kafka.Pro
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Petabridge.Phobos.Kafka.Consumer", "src\Phobos.Kafka\src\Petabridge.Phobos.Kafka.Consumer\Petabridge.Phobos.Kafka.Consumer.csproj", "{7838DC8C-E5C8-4DE1-A023-FC064E777C51}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Petabridge.Tracing.Kafka", "src\Phobos.Kafka\src\Petabridge.Tracing.Kafka\Petabridge.Tracing.Kafka.csproj", "{52C1B7DD-2EB3-464D-81B6-99ABBC4F733E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -31,6 +33,10 @@ Global
 		{7838DC8C-E5C8-4DE1-A023-FC064E777C51}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7838DC8C-E5C8-4DE1-A023-FC064E777C51}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7838DC8C-E5C8-4DE1-A023-FC064E777C51}.Release|Any CPU.Build.0 = Release|Any CPU
+		{52C1B7DD-2EB3-464D-81B6-99ABBC4F733E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{52C1B7DD-2EB3-464D-81B6-99ABBC4F733E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{52C1B7DD-2EB3-464D-81B6-99ABBC4F733E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{52C1B7DD-2EB3-464D-81B6-99ABBC4F733E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -41,5 +47,6 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{BAA41E65-9B5F-4EF5-9A45-F7ECC9596F1C} = {D7C607F1-CD55-4A4F-9120-07FA41461AEA}
 		{7838DC8C-E5C8-4DE1-A023-FC064E777C51} = {D7C607F1-CD55-4A4F-9120-07FA41461AEA}
+		{52C1B7DD-2EB3-464D-81B6-99ABBC4F733E} = {D7C607F1-CD55-4A4F-9120-07FA41461AEA}
 	EndGlobalSection
 EndGlobal

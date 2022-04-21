@@ -11,8 +11,8 @@ namespace Petabridge.Phobos.Kafka.Producer
     {
         public static async Task Main(string[] args)
         {
-            var kafkaHost = Environment.GetEnvironmentVariable(ProducerActor.KafkaServiceHost);
-            var kafkaPort = Environment.GetEnvironmentVariable(ProducerActor.KafkaServicePort);
+            var kafkaHost = Environment.GetEnvironmentVariable(AkkaActors.KafkaServiceHost);
+            var kafkaPort = Environment.GetEnvironmentVariable(AkkaActors.KafkaServicePort);
             var bootstrapServer = $"{kafkaHost}:{kafkaPort}";
             
             await WaitUntilKafkaIsReady(bootstrapServer);

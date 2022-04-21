@@ -42,5 +42,9 @@
         <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
       </Content>
     </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Petabridge.Tracing.Kafka\Petabridge.Tracing.Kafka.csproj" />
+    </ItemGroup>
     
 </Project>

@@ -154,8 +154,7 @@ Target "Protobuf" <| fun _ ->
 
     // SAMPLE PROTOFILES - replace with your own
     let protoFiles = [
-        ("Akka.Cqrs.proto", "/src/Akka.CQRS/Serialization/Proto/")
-        ("Akka.Cqrs.Pricing.proto", "/src/Akka.CQRS.Pricing/Serialization/Proto") ]
+        ("Petabridge.Tracing.Kafka.proto", "/src/Phobos.Kafka/src/Petabridge.Tracing.Kafka/Proto/") ]
 
     printfn "Using proto.exe: %s" protocPath
 

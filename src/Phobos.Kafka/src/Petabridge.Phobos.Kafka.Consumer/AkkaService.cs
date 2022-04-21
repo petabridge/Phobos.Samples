@@ -24,6 +24,7 @@ using OpenTracing;
 using Petabridge.Cmd.Cluster;
 using Petabridge.Cmd.Host;
 using Petabridge.Cmd.Remote;
+using Petabridge.Tracing.Kafka;
 using Phobos.Actor;
 using Phobos.Tracing;
 using Phobos.Tracing.Serialization;
@@ -138,6 +139,7 @@ namespace Petabridge.Phobos.Kafka.Consumer
             var committerDefaults = CommitterSettings.Create(system);
 
             _kafkaControl = KafkaConsumer.CommittableSource(consumerSettings, subscription)
+                .WithTracing(_tracer, system)
                 .SelectAsync(1, msg => 
                     Business(msg.Record).ContinueWith(done => (ICommittable) msg.CommitableOffset))
                 .ToMaterialized(
@@ -162,29 +164,8 @@ namespace Petabridge.Phobos.Kafka.Consumer
                 record.Message.Value);
 
             var message = record.Message;
-
-            IScope currentScope = null;
-            if (message.Headers.TryGetLastBytes("spanContext", out var contextPayload))
-            {
-                try
-                {
-                    var envelope = (SpanEnvelope) _serializer.FromBinary(contextPayload, TraceEnvelopeSerializer.WithTraceManifest);
-                    var activeContext = envelope.ActiveSpan;
-
-                    currentScope = _tracer.BuildSpan("kafka-consumer-receive")
-                        .AsChildOf(activeContext)
-                        .StartActive();
-                }
-                catch (Exception e)
-                {
-                    _log.Error(e, $"[Consumer] Failed to rebuild active span context: {e.Message}");
-                }
-            }
-            
             var response = await _actors.ConsoleActor.Ask<string>($"hit from {message.Value}", TimeSpan.FromSeconds(5));
-            
             _logger.LogInformation("[Consumer] Child response: [{ConsumerChildResponse}]", response);
-            currentScope?.Dispose();
         }
     }
 }
